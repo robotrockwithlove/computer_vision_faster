@@ -1,0 +1,30 @@
+# Ultralytics YOLO 🚀, GPL-3.0 license
+# Default training settings and hyperparameters for medium-augmentation COCO training
+
+task: "detect" # choices=['detect', 'segment', 'classify', 'init'] # init is a special case. Specify task to run.
+mode: "train" # choices=['train', 'val', 'predict'] # mode to run task in.
+
+project: 'exp-export' # project name
+name: 'exp' # experiment name
+
+# Export settings ------------------------------------------------------------------------------------------------------
+format: ONNX # format to export to
+keras: False  # use Keras
+optimize: False  # TorchScript: optimize for mobile
+int8: False  # CoreML/TF INT8 quantization
+dynamic: False  # ONNX/TF/TensorRT: dynamic axes
+simplify: True  # ONNX: simplify model
+opset: 11  # ONNX: opset version
+imgsz: [640,640]
+workspace: 4  # TensorRT: workspace size (GB)
+nms: False  # CoreML: add NMS 
+
+# Hydra configs --------------------------------------------------------------------------------------------------------
+cfg: null # for overriding defaults.yaml
+hydra:
+  output_subdir: null  # disable hydra directory creation
+  run:
+    dir: .
+
+# Debug, do not modify -------------------------------------------------------------------------------------------------
+v5loader: False  # use legacy YOLOv5 dataloader

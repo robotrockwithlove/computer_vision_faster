@@ -1,0 +1,6 @@
+<?xml version="1.0" ?>
+<project>
+	<name_project>LDSP_DETECT</name_project>
+	<task>detection</task>
+	<data>ldsp_corner_detection</data>
+</project>

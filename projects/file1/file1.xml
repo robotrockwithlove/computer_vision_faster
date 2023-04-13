@@ -1,0 +1,10 @@
+<?xml version="1.0" ?>
+<project>
+  <name_project>First</name_project>
+  <task>Detection</task>
+  <model>
+    yolov8
+    <model_size>size</model_size>
+    <model_input>input</model_input>
+  </model>
+</project>
