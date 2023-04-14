@@ -12,6 +12,7 @@ import xml.etree.ElementTree as ET
 
 
 import cv2
+import numpy as np
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import QFile, QIODevice, Qt, QXmlStreamReader
 from PyQt5.QtWidgets import QApplication, QTreeWidget, QTreeWidgetItem, QLabel, QFileDialog
@@ -44,6 +45,7 @@ class Ui(QtWidgets.QDialog, Ui_MainWindow):
         self.pushButton_del_class.clicked.connect(self.pushButton_del_class_click)
         self.label_annot_image.mousePressEvent = self.label_annot_image_press
         self.label_annot_image.mouseMoveEvent = self.label_annot_image_mouse_move
+        self.pushButton_del_annot_item.clicked.connect(self.pushButton_del_annot_item_click)
 
 
         self.tabWidget.currentChanged.connect(self.tabWidget_changed)
@@ -219,6 +221,11 @@ class Ui(QtWidgets.QDialog, Ui_MainWindow):
                     os.system(f'rd /S /Q {folder_to}\\{f}')
                     shutil.copytree(os.path.join(folder_from, f), os.path.join(folder_to, f))
 
+    def pushButton_del_annot_item_click(self):
+        selected_item = self.listWidget_res_annotation.currentRow()
+        if selected_item != -1:
+            item = self.listWidget_res_annotation.takeItem(selected_item)
+            del item
 
 
     def listWidget_model_itemClicked(self, item):
@@ -327,8 +334,29 @@ class Ui(QtWidgets.QDialog, Ui_MainWindow):
             img = cv2.resize(img, (new_width, new_height))
 
             # сюда можно добавить обработку рамок аннотаций.
+            if self.listWidget_res_annotation.count() > 0:
+                items = []
+                for i in range(self.listWidget_res_annotation.count()):
+                    items.append(self.listWidget_res_annotation.item(i).text())
 
-            #img = self.uvapi.draw(img, )
+                # items можно сохранить в файл
+                coord_and_class = []
+                for i in items:
+                    coord_and_class.append(i.split())
+
+                class_ids = []
+                scores = []
+                boxes = []
+                bbox_info = []
+                #берем строки и их еще нужно разбить на класс и координаты и координтаы преобразовать в данные текущей картинки.
+                for i in coord_and_class:
+                    class_ids = int(i[0])    #класс
+                    scores = int(i[0])
+                    boxes = self.conv_bbox_to_xyxy_style(i[1:], img)   #коорд
+                    boxes = np.array(boxes)
+                    bbox_info.append((boxes, scores, class_ids))
+
+                img = self.uvapi.draw(img, bbox_info, self.list_annotation_classes)
 
 
             qimage = QtGui.QImage(img.data,
@@ -556,10 +584,14 @@ class Ui(QtWidgets.QDialog, Ui_MainWindow):
         box_height = abs(y2 - y1)
         if x1 <= x2:
             xc = x1 + (box_width / 2)
-            yc = y1 + (box_height / 2)
         else:
             xc = x2 + (box_width / 2)
+
+        if y1 <= y2:
+            yc = y1 + (box_height / 2)
+        else:
             yc = y2 + (box_height / 2)
+
 
         x = xc / image_width
         y = yc / image_height
@@ -568,7 +600,23 @@ class Ui(QtWidgets.QDialog, Ui_MainWindow):
 
         return [x, y, w, h]
 
-    """ 6. вкладка  """
+    def conv_bbox_to_xyxy_style(self, yolo_bbox, frame_size, ratio=None):
+        image_width = frame_size.shape[1]
+        image_height = frame_size.shape[0]
+        x1 = float(yolo_bbox[0]) - (float(yolo_bbox[2]) / 2)
+        y1 = float(yolo_bbox[1]) - (float(yolo_bbox[3]) / 2)
+        x2 = float(yolo_bbox[0]) + (float(yolo_bbox[2]) / 2)
+        y2 = float(yolo_bbox[1]) + (float(yolo_bbox[3]) / 2)
+
+        x1 = x1 * image_width
+        y1 = y1 * image_height
+        x2 = x2 * image_width
+        y2 = y2 * image_height
+
+        return [x1, y1, x2, y2]
+
+
+    """ 6. вкладка  Обучение """
     """ 7. вкладка  """
     """ 8. вкладка  """
 
