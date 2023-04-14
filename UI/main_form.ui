@@ -668,7 +668,7 @@ font-family: Century Gothic;</string>
          <x>1080</x>
          <y>10</y>
          <width>141</width>
-         <height>161</height>
+         <height>251</height>
         </rect>
        </property>
        <property name="title">
@@ -678,7 +678,7 @@ font-family: Century Gothic;</string>
         <property name="geometry">
          <rect>
           <x>20</x>
-          <y>130</y>
+          <y>150</y>
           <width>101</width>
           <height>17</height>
          </rect>
@@ -687,7 +687,7 @@ font-family: Century Gothic;</string>
          <string>Фиксировать</string>
         </property>
        </widget>
-       <widget class="QWidget" name="">
+       <widget class="QWidget" name="layoutWidget">
         <property name="geometry">
          <rect>
           <x>20</x>
@@ -739,6 +739,38 @@ font-family: Century Gothic;</string>
          </item>
         </layout>
        </widget>
+       <widget class="QWidget" name="">
+        <property name="geometry">
+         <rect>
+          <x>10</x>
+          <y>170</y>
+          <width>121</width>
+          <height>48</height>
+         </rect>
+        </property>
+        <layout class="QGridLayout" name="gridLayout_4">
+         <item row="0" column="0">
+          <widget class="QLabel" name="label_9">
+           <property name="text">
+            <string>Ширина</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="QLineEdit" name="lineEdit_bbox_width"/>
+         </item>
+         <item row="1" column="0">
+          <widget class="QLabel" name="label_10">
+           <property name="text">
+            <string>Высота</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="QLineEdit" name="lineEdit_bbox_height"/>
+         </item>
+        </layout>
+       </widget>
       </widget>
       <widget class="QLabel" name="label_annot_image">
        <property name="geometry">
@@ -766,7 +798,7 @@ font-family: Century Gothic;</string>
        <property name="geometry">
         <rect>
          <x>1080</x>
-         <y>180</y>
+         <y>270</y>
          <width>141</width>
          <height>471</height>
         </rect>

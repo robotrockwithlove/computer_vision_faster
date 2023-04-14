@@ -43,7 +43,7 @@ class Ui(QtWidgets.QDialog, Ui_MainWindow):
         self.pushButton_add_class.clicked.connect(self.pushButton_add_class_click)
         self.pushButton_del_class.clicked.connect(self.pushButton_del_class_click)
         self.label_annot_image.mousePressEvent = self.label_annot_image_press
-
+        self.label_annot_image.mouseMoveEvent = self.label_annot_image_mouse_move
 
 
         self.tabWidget.currentChanged.connect(self.tabWidget_changed)
@@ -84,9 +84,11 @@ class Ui(QtWidgets.QDialog, Ui_MainWindow):
         self.current_project = ''
         self.current_task = ''
         self.current_data = ''
+
+        # вкладка аннотирования
         self.current_annot_class = 0
         self.current_image_ration = 1
-
+        self.current_annot_image = None
         self.number_annot_point = 0
         self.first_point = []
         self.second_point = []
@@ -108,6 +110,8 @@ class Ui(QtWidgets.QDialog, Ui_MainWindow):
             widget = item.widget()
             if widget is not None:
                 widget.deleteLater()
+
+
 
 
 
@@ -290,38 +294,51 @@ class Ui(QtWidgets.QDialog, Ui_MainWindow):
         img = cv2.imread(str(path_curren_file))
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
-        # W 871 H 731
-        # если изображение по большему их параметров больше.
-        # следует сжать изображение чтоб оно помещалось в рамку
+        self.current_annot_image = copy.deepcopy(img)
+        self.repaint_annot_image(self.current_annot_image)
 
-        height = img.shape[0]
-        width = img.shape[1]
+    def repaint_annot_image(self, image):
+        if image is not None:
+            # W 871 H 731
+            # следует сжать изображение чтоб оно помещалось в рамку
 
-        new_width = width
-        new_height = height
-        self.current_image_ration = 1
+            w_picture_zone_max = 871
+            h_picture_zone_max = 731
 
-        if height > width:
-            if img.shape[0] > 871:
-                self.current_image_ration = img.shape[0] / 871
-                new_width = int(width / self.current_image_ration)
-                new_height = int(height / self.current_image_ration)
-        else:
-            if img.shape[1] > 731:
-                self.current_image_ration = img.shape[1] / 871
-                new_width = int(width / self.current_image_ration)
-                new_height = int(height / self.current_image_ration)
+            img = copy.deepcopy(image)
+            height = img.shape[0]
+            width = img.shape[1]
 
-        img = cv2.resize(img, (new_width, new_height))
+            new_width = width
+            new_height = height
+            self.current_image_ration = 1
 
-        qimage = QtGui.QImage(img.data,
-                              img.shape[1], img.shape[0],
-                              img.strides[0],
-                              QtGui.QImage.Format_RGB888)
-        pixmap = QtGui.QPixmap.fromImage(qimage)
+            if height > width:
+                if img.shape[0] > h_picture_zone_max:
+                    self.current_image_ration = img.shape[0] / h_picture_zone_max
+                    new_width = int(width / self.current_image_ration)
+                    new_height = int(height / self.current_image_ration)
+            else:
+                if img.shape[1] > w_picture_zone_max:
+                    self.current_image_ration = img.shape[1] / w_picture_zone_max
+                    new_width = int(width / self.current_image_ration)
+                    new_height = int(height / self.current_image_ration)
 
-        self.label_annot_image.resize(img.shape[1], img.shape[0])
-        self.label_annot_image.setPixmap(pixmap)
+            img = cv2.resize(img, (new_width, new_height))
+
+            # сюда можно добавить обработку рамок аннотаций.
+
+            #img = self.uvapi.draw(img, )
+
+
+            qimage = QtGui.QImage(img.data,
+                                  img.shape[1], img.shape[0],
+                                  img.strides[0],
+                                  QtGui.QImage.Format_RGB888)
+            pixmap = QtGui.QPixmap.fromImage(qimage)
+
+            self.label_annot_image.resize(img.shape[1], img.shape[0])
+            self.label_annot_image.setPixmap(pixmap)
 
     def label_annot_image_press(self, event):
         x = event.pos().x()
@@ -339,7 +356,15 @@ class Ui(QtWidgets.QDialog, Ui_MainWindow):
             self.lineEdit_y2.setText(str(y))
             #фиксируем
             self.fix_annotation()
+
             self.number_annot_point = 0
+
+    def label_annot_image_mouse_move(self, event):
+        x = event.pos().x()
+        y = event.pos().y()
+        print(x, ' ', y)
+
+
 
     def showCounter(self):
         if self.tabWidget.currentIndex() == 0:
@@ -348,6 +373,9 @@ class Ui(QtWidgets.QDialog, Ui_MainWindow):
             pass
         elif self.tabWidget.currentIndex() == 2:
             pass
+        elif self.tabWidget.currentIndex() == 4:
+            self.repaint_annot_image(self.current_annot_image)
+
         elif self.tabWidget.currentIndex() == 6:
             pass
 
@@ -499,36 +527,46 @@ class Ui(QtWidgets.QDialog, Ui_MainWindow):
         x2 = self.second_point[0]
         y2 = self.second_point[1]
 
-        #res = self.convert_yolo_style(x1, y1, x2, y2)
-        out_str = str(self.tableWidget_annotation_classes.currentRow()) + ' ' + str(x1) + ' ' + str(y1) + ' ' + str(x2) + ' ' + str(y2)
+        res = self.conv_bbox_to_yolo_style(x1, y1, x2, y2,
+                                           self.current_annot_image,
+                                           self.current_image_ration)
+
+        out_str = str(self.tableWidget_annotation_classes.currentRow()) + \
+                  ' ' + str(round(res[0], 6)) + \
+                  ' ' + str(round(res[1], 6)) + \
+                  ' ' + str(round(res[2], 6)) + \
+                  ' ' + str(round(res[3], 6))
+
         self.listWidget_res_annotation.addItem(out_str)
 
 
-    def convert_yolo_style(self, x1, y1, x2, y2, img, ratio):
+
+
+    def conv_bbox_to_yolo_style(self, x1, y1, x2, y2, img, ratio):
+
+        image_width = img.shape[1]
+        image_height = img.shape[0]
 
         x1 = float(x1 * ratio)
         y1 = float(y1 * ratio)
         x2 = float(x2 * ratio)
         y2 = float(y2 * ratio)
 
-        box_width = x2 - x1
-        box_height = y2 - y1
-        xc = x1 + (box_width / 2)
-        yc = y1 + (box_height / 2)
+        box_width = abs(x2 - x1)
+        box_height = abs(y2 - y1)
+        if x1 <= x2:
+            xc = x1 + (box_width / 2)
+            yc = y1 + (box_height / 2)
+        else:
+            xc = x2 + (box_width / 2)
+            yc = y2 + (box_height / 2)
 
-        x = xc / img.img_width
-        y = yc / img.img_height
-        w = box_width / img.img_height
-        h = box_height / img.img_height
+        x = xc / image_width
+        y = yc / image_height
+        w = box_width / image_width
+        h = box_height / image_height
 
         return [x, y, w, h]
-
-    def convert_yolo_style_2(self, x1, y1, x2, y2):
-        #x = xc / img_width
-        #y = yc / img_height
-        #width = box_width / img_height
-        #height = box_height / img_heiht
-        pass
 
     """ 6. вкладка  """
     """ 7. вкладка  """
