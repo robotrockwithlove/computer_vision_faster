@@ -625,19 +625,6 @@ font-family: Century Gothic;</string>
        <widget class="QPushButton" name="pushButton_del_annot_item">
         <property name="geometry">
          <rect>
-          <x>90</x>
-          <y>390</y>
-          <width>81</width>
-          <height>23</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>Удалить</string>
-        </property>
-       </widget>
-       <widget class="QPushButton" name="pushButton_add_annot_item">
-        <property name="geometry">
-         <rect>
           <x>10</x>
           <y>390</y>
           <width>81</width>
@@ -645,7 +632,7 @@ font-family: Century Gothic;</string>
          </rect>
         </property>
         <property name="text">
-         <string>Добавить</string>
+         <string>Удалить</string>
         </property>
        </widget>
        <widget class="QLabel" name="label_4">
@@ -739,7 +726,7 @@ font-family: Century Gothic;</string>
          </item>
         </layout>
        </widget>
-       <widget class="QWidget" name="">
+       <widget class="QWidget" name="layoutWidget">
         <property name="geometry">
          <rect>
           <x>10</x>
@@ -816,6 +803,19 @@ font-family: Century Gothic;</string>
          </rect>
         </property>
        </widget>
+      </widget>
+      <widget class="QPushButton" name="pushButton_annot_next">
+       <property name="geometry">
+        <rect>
+         <x>1230</x>
+         <y>20</y>
+         <width>41</width>
+         <height>23</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Далее</string>
+       </property>
       </widget>
      </widget>
      <widget class="QWidget" name="tab_6">

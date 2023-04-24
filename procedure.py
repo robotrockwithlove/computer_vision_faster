@@ -46,6 +46,7 @@ class Ui(QtWidgets.QDialog, Ui_MainWindow):
         self.label_annot_image.mousePressEvent = self.label_annot_image_press
         self.label_annot_image.mouseMoveEvent = self.label_annot_image_mouse_move
         self.pushButton_del_annot_item.clicked.connect(self.pushButton_del_annot_item_click)
+        self.pushButton_annot_next.clicked.connect(self.pushButton_annot_next_click)
 
 
         self.tabWidget.currentChanged.connect(self.tabWidget_changed)
@@ -91,9 +92,12 @@ class Ui(QtWidgets.QDialog, Ui_MainWindow):
         self.current_annot_class = 0
         self.current_image_ration = 1
         self.current_annot_image = None
+        self.current_annot_label_file = None
         self.number_annot_point = 0
         self.first_point = []
         self.second_point = []
+        self.current_coord = []
+        self.out_annot_img = None
 
 
         #функции
@@ -227,6 +231,11 @@ class Ui(QtWidgets.QDialog, Ui_MainWindow):
             item = self.listWidget_res_annotation.takeItem(selected_item)
             del item
 
+    def pushButton_annot_next_click(self):
+        # переход на вкладку обучение
+        self.listWidget_files_for_annot_itemCliked(self.listWidget_files_for_annot.currentItem())
+        self.update_treeWidget(5)
+
 
     def listWidget_model_itemClicked(self, item):
         path_model = Path(self.path_models, item.text())
@@ -252,7 +261,7 @@ class Ui(QtWidgets.QDialog, Ui_MainWindow):
             self.edit_models_list()
         elif index == 3:
             self.edit_data_list()
-        elif index == 4:
+        elif index == 4:        # разметка
             dir_data = self.list_data_folders[self.current_data]
             self.path_data = Path(self.path_datasets, dir_data)
             path_file_yaml = Path(self.path_data, dir_data+'.yaml')
@@ -282,7 +291,7 @@ class Ui(QtWidgets.QDialog, Ui_MainWindow):
             self.path_labels = Path(self.path_data, 'labels')
 
             self.list_work_images = self.get_files_from_img(self.path_images)
-            self.list_work_labels = self.get_files_from_labels(self.path_images)
+            self.list_work_labels = self.get_files_from_labels(self.path_labels)
 
             #поместить список файлов listWidget
             self.edit_work_images_list(self.path_images)
@@ -290,19 +299,71 @@ class Ui(QtWidgets.QDialog, Ui_MainWindow):
             #если список аннотаций пуст создать его
             if len(self.list_work_labels) == 0:
                 for i in range(len(self.list_work_images)):
-                    path_file = Path(self.path_labels, str(self.list_work_images[i])+'.txt')
+
+                    path = Path(self.list_work_images[i])
+                    file_name_without_ext = path.with_suffix("").name
+
+                    path_file = Path(self.path_labels, str(file_name_without_ext)+'.txt')
                     with open(path_file, "w") as file:
                         file.write('')
 
+            self.list_work_labels = self.get_files_from_labels(self.path_labels)
+
+            #выбрать первую строку в списке файлов фото.
+            self.listWidget_files_for_annot_itemCliked(self.listWidget_files_for_annot.item(0))
+
+        elif index == 5: # обучение
+            pass
+
     def listWidget_files_for_annot_itemCliked(self, item):
 
-        path_curren_file = Path(self.path_images, item.text())
+        path_current_file = Path(self.path_images, item.text())
 
-        img = cv2.imread(str(path_curren_file))
+        img = cv2.imread(str(path_current_file))
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
         self.current_annot_image = copy.deepcopy(img)
         self.repaint_annot_image(self.current_annot_image)
+
+        # чтение файла с аннотациями.
+        if self.current_annot_label_file == None:
+            # если мы еще не обращались к файлам лейблов, то прочитаем первый
+            self.read_annot_file(item.text())
+            self.current_annot_label_file = item.text()
+
+        elif self.current_annot_label_file != item.text():
+            # если файл для аннотирования изменился, перезапишем предыдущий
+            # и далее прочитаем новый.
+            self.rewrite_annot_file(self.current_annot_label_file)
+            self.read_annot_file(item.text())
+            self.current_annot_label_file = item.text()
+        else:
+            self.rewrite_annot_file(self.current_annot_label_file)
+            self.read_annot_file(item.text())
+            self.current_annot_label_file = item.text()
+
+    def read_annot_file(self, file_name):
+        path = Path(file_name)
+        file_name_without_ext = path.with_suffix("").name
+        path_file = Path(self.path_labels, str(file_name_without_ext) + '.txt')
+
+        with open(path_file, "r") as f:
+            lines = f.readlines()
+            self.listWidget_res_annotation.clear()
+            self.listWidget_res_annotation.addItems(lines)
+
+
+    def rewrite_annot_file(self, file_name):
+        path = Path(file_name)
+        file_name_without_ext = path.with_suffix("").name
+        path_file = Path(self.path_labels, str(file_name_without_ext) + '.txt')
+
+        string_list = [self.listWidget_res_annotation.item(i).text() for i in range(self.listWidget_res_annotation.count())]
+        string_list = [s.replace('\n', '') for s in string_list]
+
+        with open(path_file, 'w') as f:
+            f.writelines([s + '\n' for s in string_list])
+
 
     def repaint_annot_image(self, image):
         if image is not None:
@@ -339,6 +400,7 @@ class Ui(QtWidgets.QDialog, Ui_MainWindow):
                 for i in range(self.listWidget_res_annotation.count()):
                     items.append(self.listWidget_res_annotation.item(i).text())
 
+
                 # items можно сохранить в файл
                 coord_and_class = []
                 for i in items:
@@ -348,49 +410,92 @@ class Ui(QtWidgets.QDialog, Ui_MainWindow):
                 scores = []
                 boxes = []
                 bbox_info = []
-                #берем строки и их еще нужно разбить на класс и координаты и координтаы преобразовать в данные текущей картинки.
+                # берем строки и их еще нужно разбить на класс и координаты и координтаы преобразовать в данные текущей картинки.
                 for i in coord_and_class:
-                    class_ids = int(i[0])    #класс
-                    scores = int(i[0])
-                    boxes = self.conv_bbox_to_xyxy_style(i[1:], img)   #коорд
+                    class_ids = int(i[0])    # класс
+                    scores = int(0)          # вероятность должно быть всегда 0.
+                    boxes = self.conv_bbox_to_xyxy_style(i[1:], img)   # коорд
                     boxes = np.array(boxes)
                     bbox_info.append((boxes, scores, class_ids))
 
+                # дописать одно значение в реальном времени.
+                if self.number_annot_point == 1:
+                    boxes = [self.first_point[0], self.first_point[1], self.current_coord[0], self.current_coord[1]]
+                    boxes = np.array(boxes)
+                    bbox_info.append((boxes, 0, 0))
+
                 img = self.uvapi.draw(img, bbox_info, self.list_annotation_classes)
 
+            self.out_annot_img = copy.deepcopy(img)
 
-            qimage = QtGui.QImage(img.data,
-                                  img.shape[1], img.shape[0],
-                                  img.strides[0],
+            #вывод изображения
+            qimage = QtGui.QImage(self.out_annot_img.data,
+                                  self.out_annot_img.shape[1], self.out_annot_img.shape[0],
+                                  self.out_annot_img.strides[0],
                                   QtGui.QImage.Format_RGB888)
             pixmap = QtGui.QPixmap.fromImage(qimage)
 
-            self.label_annot_image.resize(img.shape[1], img.shape[0])
+            self.label_annot_image.resize(self.out_annot_img.shape[1], self.out_annot_img.shape[0])
             self.label_annot_image.setPixmap(pixmap)
 
     def label_annot_image_press(self, event):
         x = event.pos().x()
         y = event.pos().y()
 
-        if self.number_annot_point == 0:
-            self.first_point = [x, y]
-            self.lineEdit_x1.setText(str(x))
-            self.lineEdit_y1.setText(str(y))
-            self.number_annot_point = 1
+        if not self.checkBox_fix_rect.isChecked():
+            if self.number_annot_point == 0:
+                self.first_point = [x, y]
+                self.lineEdit_x1.setText(str(x))
+                self.lineEdit_y1.setText(str(y))
+                self.number_annot_point = 1
 
-        elif self.number_annot_point == 1:
-            self.second_point = [x, y]
-            self.lineEdit_x2.setText(str(x))
-            self.lineEdit_y2.setText(str(y))
-            #фиксируем
-            self.fix_annotation()
+            elif self.number_annot_point == 1:
+                self.second_point = [x, y]
+                self.lineEdit_x2.setText(str(x))
+                self.lineEdit_y2.setText(str(y))
+                #фиксируем
+                self.fix_annotation()
 
-            self.number_annot_point = 0
+                self.number_annot_point = 0
+        else:
+            # каждое касание будет создавать аннотацию с заданными высотой и шириной
+            width = self.lineEdit_bbox_width.text()
+            height = self.lineEdit_bbox_height.text()
+
+            try:
+                width = int(width)
+                height = int(height)
+
+                if width <= 0 or height <= 0:
+                    raise ValueError('Введите целое число больше нуля')
+
+                x1, y1, x2, y2 = self.creating_bbox_from_center_hw(x, y, width, height, self.out_annot_img)
+
+                self.first_point = [x1, y1]
+                self.second_point = [x2, y2]
+
+
+                self.lineEdit_x1.setText(str(self.first_point[0]))
+                self.lineEdit_y1.setText(str(self.first_point[1]))
+
+                self.lineEdit_x2.setText(str(self.second_point[0]))
+                self.lineEdit_y2.setText(str(self.second_point[1]))
+
+                # фиксируем
+                self.fix_annotation()
+                self.number_annot_point = 0
+
+            except ValueError:
+                QtWidgets.QMessageBox.warning(None, 'Внимание', 'Введите целое число больше нуля')
+
+
 
     def label_annot_image_mouse_move(self, event):
         x = event.pos().x()
         y = event.pos().y()
-        print(x, ' ', y)
+        self.current_coord = [x, y]
+
+
 
 
 
@@ -404,6 +509,8 @@ class Ui(QtWidgets.QDialog, Ui_MainWindow):
         elif self.tabWidget.currentIndex() == 4:
             self.repaint_annot_image(self.current_annot_image)
 
+        elif self.tabWidget.currentIndex() == 5:
+            pass
         elif self.tabWidget.currentIndex() == 6:
             pass
 
@@ -510,6 +617,7 @@ class Ui(QtWidgets.QDialog, Ui_MainWindow):
         self.listWidget_model.clear()
         self.listWidget_model.addItems(self.list_models)
 
+
     """ 4. вкладка Данные """
     def get_data_list(self):
         folders = [x.name for x in self.path_datasets.glob('*') if x.is_dir()]
@@ -519,6 +627,7 @@ class Ui(QtWidgets.QDialog, Ui_MainWindow):
         self.list_data_folders = self.get_data_list()
         self.listWidget_data_catalog.clear()
         self.listWidget_data_catalog.addItems(self.list_data_folders)
+
 
     """ 5. вкладка Разметка """
     def load_labels(self, labels_file):
@@ -547,9 +656,10 @@ class Ui(QtWidgets.QDialog, Ui_MainWindow):
         self.listWidget_files_for_annot.addItems(self.list_work_images)
 
     def fix_annotation(self):
-        #нужно получить номер класса и координаты
-        #и поместить в listWidget
-        print(self.tableWidget_annotation_classes.currentRow())
+        # нужно получить номер класса и координаты
+        # и поместить в listWidget
+        # print(self.tableWidget_annotation_classes.currentRow())
+
         x1 = self.first_point[0]
         y1 = self.first_point[1]
         x2 = self.second_point[0]
@@ -566,8 +676,6 @@ class Ui(QtWidgets.QDialog, Ui_MainWindow):
                   ' ' + str(round(res[3], 6))
 
         self.listWidget_res_annotation.addItem(out_str)
-
-
 
 
     def conv_bbox_to_yolo_style(self, x1, y1, x2, y2, img, ratio):
@@ -592,7 +700,6 @@ class Ui(QtWidgets.QDialog, Ui_MainWindow):
         else:
             yc = y2 + (box_height / 2)
 
-
         x = xc / image_width
         y = yc / image_height
         w = box_width / image_width
@@ -614,6 +721,27 @@ class Ui(QtWidgets.QDialog, Ui_MainWindow):
         y2 = y2 * image_height
 
         return [x1, y1, x2, y2]
+
+    def creating_bbox_from_center_hw(self, x, y, w, h, image):
+
+        x1 = x - w/2
+        if x1 < 0:
+            x1 = 0
+
+        y1 = y - h/2
+        if y1 < 0:
+            y1 = 0
+
+        x2 = x + w/2
+        if x2 > image.shape[1]:
+            x2 = image.shape[1]
+
+        y2 = y + h/2
+        if y2 > image.shape[0]:
+            y2 = image.shape[0]
+
+        return x1, y1, x2, y2
+
 
 
     """ 6. вкладка  Обучение """
